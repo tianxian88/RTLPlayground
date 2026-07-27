@@ -21,3 +21,9 @@ jobs:
         run: make machine_check
       - name: Make project
         run: make MACHINE="SWTGW218AS"
+      
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: SWTGW218AS
+           path: RTLPlayground/output
