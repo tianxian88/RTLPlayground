@@ -26,4 +26,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SWTGW218AS
-           path: RTLPlayground/output
+          path: RTLPlayground/output
