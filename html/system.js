@@ -35,16 +35,38 @@ async function ipSub() {
 }
 
 async function cmdSub() {
-  var cmd = document.getElementById('console_cmd').value;
+  const input = document.getElementById('console_cmd');
+  const out = document.getElementById('console_out');
+  const cmd = input.value;
   try {
     const response = await fetch('/cmd', {
       method: 'POST',
       body: cmd
     });
-    console.log('Completed!', response);
+    if (response.status == 401) {
+      window.location.href = 'login.html';
+      return;
+    }
+    let text = await response.text();
+    if (text != "" && !text.endsWith("\n"))
+      text += "\n";
+    if (out.textContent.length > 20000)
+      out.textContent = out.textContent.slice(-16000);
+    out.textContent += "> " + cmd + "\n" + text;
+    out.scrollTop = out.scrollHeight;
+    input.value = "";
   } catch(err) {
+      out.textContent += "> " + cmd + "\n" + err + "\n";
       console.error(`Error: ${err}`);
   }
+}
+
+
+async function hostSub() {
+  const h = document.getElementById("hostname").value;
+  try { await fetch('/cmd', { method: 'POST', body: "hostname " + h }); }
+  catch(err) { console.error(`Error: ${err}`); }
+  fetchIP();
 }
 
 
@@ -123,6 +145,9 @@ function fetchIP() {
       document.getElementById("ip").value=s.ip_address;
       document.getElementById("netmask").value=s.ip_netmask;
       document.getElementById("gw").value=s.ip_gateway;
+      document.getElementById("hostname").value=s.hostname;
+      document.getElementById("model").textContent=s.hw_ver;
+      loadMgmtVlan();
       clearInterval(systemInterval);
       // Fetch and populate the config textbox
       fetchConfig().then((configText) => {
@@ -155,3 +180,43 @@ window.addEventListener("load", function() {
   if (langSel) langSel.value = rtlLang;
   systemInterval = setInterval(fetchIP, 1000);
 });
+
+
+var mgmtVlanCurrent = 0;
+
+function loadMgmtVlan() {
+  var sel = document.getElementById('mgmtvlan');
+  if (!sel) return;
+  fetch('/vlanlist').then(function(r) { return r.json(); }).then(function(d) {
+    var cur = d.mgmt || 0;
+    var list = d.vlan || [];
+    mgmtVlanCurrent = cur;
+    sel.innerHTML = '';
+    if (!cur) {
+      var none = document.createElement('option');
+      none.value = 0; none.disabled = true;
+      none.textContent = t('sys_mgmt_untagged');
+      sel.appendChild(none);
+    }
+    for (var i = 0; i < list.length; i++) {
+      var o = document.createElement('option');
+      o.value = list[i].id;
+      o.textContent = list[i].name ? (list[i].id + ' (' + list[i].name + ')') : list[i].id;
+      sel.appendChild(o);
+    }
+    sel.value = cur;
+  }).catch(function(err) { console.error('VLAN list failed:', err); });
+}
+
+function mgmtVlanChanged() {
+  var sel = document.getElementById('mgmtvlan');
+  var id = parseInt(sel.value, 10);
+  if (!id || id === mgmtVlanCurrent) return;
+  if (!confirm(t('sys_mgmt_confirm') + id + '.\n\n' + t('sys_mgmt_warn'))) {
+    sel.value = mgmtVlanCurrent;
+    return;
+  }
+  fetch('/cmd', { method: 'POST', body: 'vlan ' + id + ' mgmt' })
+    .then(function() { mgmtVlanCurrent = id; })
+    .catch(function(err) { console.error('Set management VLAN failed:', err); sel.value = mgmtVlanCurrent; });
+}

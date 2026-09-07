@@ -26,6 +26,15 @@
     <div id="system-tab" class="tab-content active">
       <h1 data-i18n="sys_heading">System Settings</h1>
       <div class="row">
+        <div class="lcol"> <label for="hostname" data-i18n="sys_hostname">Hostname:</label></div>
+        <div class="rcol"> <input id="hostname" type="text" maxlength="23" size="20"/>
+          <button onclick="hostSub()" data-i18n="sys_apply">Apply</button></div>
+      </div>
+      <div class="row">
+        <div class="lcol"> <label data-i18n="sys_model">Model:</label></div>
+        <div class="rcol"><span id="model" class="rotext"></span></div>
+      </div>
+      <div class="row">
         <div class="lcol"> <label for="ip" data-i18n="sys_ip">IP address:</label></div>
         <div class="rcol"> <input id="ip" class="ip" type="text" minlength="7" maxlength="15" size="15"/></div>
       </div>
@@ -36,6 +45,10 @@
       <div class="row">
         <div class="lcol"> <label for="gw" data-i18n="sys_gateway">Gateway:</label></div>
         <div class="rcol"><input id="gw" class="ip" type="text" minlength="7" maxlength="15" size="15"/></div>
+      </div>
+      <div class="row">
+        <div class="lcol"> <label for="mgmtvlan" data-i18n="sys_mgmt_vlan">Management VLAN:</label></div>
+        <div class="rcol"><select id="mgmtvlan" class="ip" onchange="mgmtVlanChanged()"></select></div>
       </div>
       <div class="row">
         <div class="lcol"> <label data-i18n="sys_language">Language:</label></div>
@@ -75,6 +88,8 @@
       <input style="width:20%;" class="action" id="cmd_sub" onclick="cmdSub();" type="button" data-i18n="sys_send_cmd" value="Send Command"><br/>
       <br/><br/> 
       <span data-i18n="sys_console_warn">Be careful when entering console commands, you can lock yourself out!</span><br/>
+      <br/>
+      <pre id="console_out" style="height:22em;overflow:auto;white-space:pre-wrap;border:1px solid;padding:0.5em;"></pre>
 
     </div>
 

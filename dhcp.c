@@ -41,6 +41,7 @@ __xdata uip_ipaddr_t server;
 #define DHCP_REBIND_LEN		4
 #define DHCP_CLIENT_ID		61
 #define DHCP_CLIENT_ID_LEN	7
+#define DHCP_HOSTNAME		12
 #define DHCP_REQUEST_IP		50
 #define DHCP_REQUEST_IP_LEN	4
 #define DHCP_PARAMS		55
@@ -93,7 +94,7 @@ void dhcp_prepare_request(void)
 	DHCP_P->hw_len = 6;
 	DHCP_P->hops = 0;
 
-	DHCP_P->tid = HTONS(dhcp_state.transaction_id);
+	DHCP_P->tid = dhcp_state.transaction_id;
 	DHCP_P->delay = HTONS(0);
 	DHCP_P->flags = 0;
 	// Clear fields client_ip to bootp_file
@@ -113,6 +114,20 @@ void dhcp_addopt_client_id(void)
 	DHCP_OPT[dhcp_state.opt_ptr++] = DHCP_HW_TYPE_ETH;
 	memcpy(&DHCP_OPT[dhcp_state.opt_ptr], uip_ethaddr.addr, 6);
 	dhcp_state.opt_ptr += 6;
+}
+
+
+void dhcp_addopt_hostname(void)
+{
+	uint8_t len = 0;
+	while (hostname[len])
+		len++;
+	if (!len)
+		return;
+	DHCP_OPT[dhcp_state.opt_ptr++] = DHCP_HOSTNAME;
+	DHCP_OPT[dhcp_state.opt_ptr++] = len;
+	memcpy(&DHCP_OPT[dhcp_state.opt_ptr], hostname, len);
+	dhcp_state.opt_ptr += len;
 }
 
 
@@ -152,6 +167,7 @@ void dhcp_send_discover(void)
 
 	dhcp_addopt_client_id();
 	dhcp_addopt_request_ip();
+	dhcp_addopt_hostname();
 
 	DHCP_OPT[dhcp_state.opt_ptr++] = DHCP_PARAMS;
 	DHCP_OPT[dhcp_state.opt_ptr++] = 3;
@@ -188,6 +204,7 @@ void dhcp_send_request(void)
 	dhcp_addopt_client_id();
 	dhcp_addopt_request_ip();
 	dhcp_addopt_server_id();
+	dhcp_addopt_hostname();
 
 	DHCP_OPT[dhcp_state.opt_ptr++] = DHCP_PARAMS;
 	DHCP_OPT[dhcp_state.opt_ptr++] = 3;
@@ -283,7 +300,7 @@ void parse_opts(void)
 
 void parse_dhcp(void)
 {
-	if (!DHCP_P->tid == HTONS(dhcp_state.transaction_id))
+	if (DHCP_P->tid != dhcp_state.transaction_id)
 		return;
 	if (DHCP_P->cookie[0] != 0x63 || DHCP_P->cookie[1] != 0x82 || DHCP_P->cookie[2] != 0x53 || DHCP_P->cookie[3] != 0x63)
 		return;
@@ -334,7 +351,12 @@ void dhcp_start(void) __banked
 		return;
 	}
 	get_random_32();
-	dhcp_state.transaction_id = SFR_DATA_U32;
+	// Workaround SDCC bug 4070: dhcp_state.transaction_id = SFR_DATA_U32;
+	__xdata uint8_t * tid = &dhcp_state.transaction_id;
+	*tid++ = SFR_DATA_24;
+	*tid++ = SFR_DATA_16;
+	*tid++ = SFR_DATA_8;
+	*tid = SFR_DATA_0;
 	dhcp_state.state = DHCP_START;
 	print_string("dhcp_start done\n");
 }
